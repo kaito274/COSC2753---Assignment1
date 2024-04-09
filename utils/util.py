@@ -1,0 +1,73 @@
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.metrics import confusion_matrix, f1_score
+
+def plot_confusion_matrix(train_Y, pred_train_Y, val_Y=None, pred_val_Y=None):
+    # Compute confusion matrix for the training set
+    cm_train = confusion_matrix(train_Y, pred_train_Y)
+    
+    # Initialize the plot
+    plt.figure(figsize=(16, 6))
+    
+    # Plot the training set confusion matrix
+    plt.subplot(1, 2, 1)  # 1 row, 2 columns, 1st subplot
+    sns.heatmap(cm_train, annot=True, fmt="d", linewidths=.5, square=True, cmap='Blues', cbar=False)
+    plt.ylabel('Actual label')
+    plt.xlabel('Predicted label')
+    plt.title('Training Set Confusion Matrix')
+    
+    # Check if validation data is provided
+    if val_Y is not None and pred_val_Y is not None:
+        cm_val = confusion_matrix(val_Y, pred_val_Y)
+        # Plot the validation set confusion matrix
+        plt.subplot(1, 2, 2)  # 1 row, 2 columns, 2nd subplot
+        sns.heatmap(cm_val, annot=True, fmt="d", linewidths=.5, square=True, cmap='Blues', cbar=False)
+        plt.ylabel('Actual label')
+        plt.xlabel('Predicted label')
+        plt.title('Validation Set Confusion Matrix')
+    
+    # Adjust layout and show plot
+    plt.tight_layout()  # Adjust subplots to fit into figure area.
+    plt.show()
+
+
+def threshold_tuning_with_rocauc(train_probabilities, val_probabilities, train_Y, val_Y, thresholds):
+    train_rocauc_scores = []
+    val_rocauc_scores = []
+    for thresh in thresholds:
+        # Apply threshold to positive class probabilities to create binary predictions
+        train_preds = (train_probabilities >= thresh).astype(int)
+        val_preds = (val_probabilities >= thresh).astype(int)
+        
+        # Calculate the F1 score at this threshold for both sets
+        train_auc = roc_auc_score(train_Y, train_preds)
+        val_auc = roc_auc_score(val_Y, val_preds)
+        
+        train_rocauc_scores.append(train_auc)
+        val_rocauc_scores.append(val_auc)
+        
+    return train_rocauc_scores, val_rocauc_scores
+
+
+def threshold_tuning_with_f1(train_probabilities, val_probabilities, train_Y, val_Y, thresholds):
+    train_f1_scores = []
+    val_f1_scores = []
+    for thresh in thresholds:
+        # Apply threshold to positive class probabilities to create binary predictions
+        train_preds = (train_probabilities >= thresh).astype(int)
+        val_preds = (val_probabilities >= thresh).astype(int)
+        
+        # Calculate the F1 score at this threshold for both sets
+        train_f1 = f1_score(train_Y, train_preds)
+        val_f1 = f1_score(val_Y, val_preds)
+        
+        train_f1_scores.append(train_f1)
+        val_f1_scores.append(val_f1)
+        
+    return train_f1_scores, val_f1_scores
+
+def create_plot_pivot(data2, x_column):
+    """ Create a pivot table for satisfaction versus another rating for easy plotting. """
+    _df_plot = data2.groupby([x_column, 'Status']).size() \
+    .reset_index().pivot(columns='Status', index=x_column, values=0)
+    return _df_plot
