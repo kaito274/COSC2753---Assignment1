@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.metrics import confusion_matrix, f1_score
+from sklearn.metrics import confusion_matrix, f1_score, roc_auc_score
+import pandas as pd
+import numpy as np
 
 def plot_confusion_matrix(train_Y, pred_train_Y, val_Y=None, pred_val_Y=None):
     # Compute confusion matrix for the training set
@@ -31,7 +33,9 @@ def plot_confusion_matrix(train_Y, pred_train_Y, val_Y=None, pred_val_Y=None):
     plt.show()
 
 
-def threshold_tuning_with_rocauc(train_probabilities, val_probabilities, train_Y, val_Y, thresholds):
+def threshold_tuning_with_rocauc(train_probabilities, val_probabilities, train_Y, val_Y, thresholds = None):
+    if thresholds is None:
+        thresholds = np.linspace(0, 1, num=100)  # 100 thresholds spaced evenly from 0 to 1
     train_rocauc_scores = []
     val_rocauc_scores = []
     for thresh in thresholds:
@@ -49,7 +53,9 @@ def threshold_tuning_with_rocauc(train_probabilities, val_probabilities, train_Y
     return train_rocauc_scores, val_rocauc_scores
 
 
-def threshold_tuning_with_f1(train_probabilities, val_probabilities, train_Y, val_Y, thresholds):
+def threshold_tuning_with_f1(train_probabilities, val_probabilities, train_Y, val_Y, thresholds = None):
+    if thresholds is None:
+        thresholds = np.linspace(0, 1, num=100)  # 100 thresholds spaced evenly from 0 to 1
     train_f1_scores = []
     val_f1_scores = []
     for thresh in thresholds:
@@ -63,11 +69,83 @@ def threshold_tuning_with_f1(train_probabilities, val_probabilities, train_Y, va
         
         train_f1_scores.append(train_f1)
         val_f1_scores.append(val_f1)
+
+    f1_diff = np.abs(np.array(train_f1_scores) - np.array(val_f1_scores))
+    combined_score = np.array(val_f1_scores) - f1_diff  # Example metric to balance both
+    optimal_index = np.argmax(combined_score)
+    optimal_threshold = thresholds[optimal_index]
+    
+    print(f"Optimal threshold: {optimal_threshold}")
         
-    return train_f1_scores, val_f1_scores
+    return train_f1_scores, val_f1_scores, optimal_threshold
+
+def threshold_tuning_with_f1_weighted(train_probabilities, val_probabilities, train_Y, val_Y, thresholds = None):
+    if thresholds is None:
+        thresholds = np.linspace(0, 1, num=100)  # 100 thresholds spaced evenly from 0 to 1
+    train_f1_scores = []
+    val_f1_scores = []
+    for thresh in thresholds:
+        # Apply threshold to positive class probabilities to create binary predictions
+        train_preds = (train_probabilities >= thresh).astype(int)
+        val_preds = (val_probabilities >= thresh).astype(int)
+        
+        # Calculate the F1 score at this threshold for both sets
+        train_f1 = f1_score(train_Y, train_preds, average='binary')
+        val_f1 = f1_score(val_Y, val_preds, average='weighted')
+        
+        train_f1_scores.append(train_f1)
+        val_f1_scores.append(val_f1)
+
+    f1_diff = np.abs(np.array(train_f1_scores) - np.array(val_f1_scores))
+    combined_score = np.array(val_f1_scores) - f1_diff  # Example metric to balance both
+    optimal_index = np.argmax(combined_score)
+    optimal_threshold = thresholds[optimal_index]
+    
+    print(f"Optimal threshold: {optimal_threshold}")
+        
+    return train_f1_scores, val_f1_scores, optimal_threshold
 
 def create_plot_pivot(data2, x_column):
     """ Create a pivot table for satisfaction versus another rating for easy plotting. """
     _df_plot = data2.groupby([x_column, 'Status']).size() \
     .reset_index().pivot(columns='Status', index=x_column, values=0)
     return _df_plot
+
+def get_performance(train_Y, train_pred_Y, train_predprob_Y, val_Y, val_pred_Y, val_predprob_Y):
+    # Calculating metrics
+    metrics_data = {
+        'F1 Score (Binary)': [
+            f1_score(train_Y, train_pred_Y, average='binary'),
+            f1_score(val_Y, val_pred_Y, average='binary')
+        ],
+        'F1 Score (Weighted)': [
+            None,  # Not applicable for train set
+            f1_score(val_Y, val_pred_Y, average='weighted')
+        ],
+        'ROC-AUC Score': [
+            roc_auc_score(train_Y, train_predprob_Y),
+            roc_auc_score(val_Y, val_predprob_Y)
+        ],
+    }
+    
+    # Creating DataFrame
+    metrics_df = pd.DataFrame(metrics_data, index=['Train Set', 'Validation Set'])
+    
+    # Displaying the table
+    print(metrics_df)
+
+def plot_tuning_with_optimal_threshold(label_train, label_val, title, y_label, train_scores, val_scores, optimal_threshold, thresholds = None):
+    if thresholds is None:
+        thresholds = np.linspace(0, 1, num=100)  # 100 thresholds spaced evenly from 0 to 1
+        
+    plt.figure(figsize=(10, 6))
+    plt.plot(thresholds, train_scores, label=label_train)
+    plt.plot(thresholds, val_scores, label=label_val)
+    plt.axvline(x=optimal_threshold, color='r', linestyle='--', label=f'Optimal Threshold = {optimal_threshold:.2f}')
+    plt.title(title)
+    plt.xlabel('Threshold')
+    plt.ylabel(y_label)
+    plt.legend()
+    plt.grid(True)
+    plt.show()
+    
