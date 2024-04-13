@@ -3,6 +3,7 @@ import seaborn as sns
 from sklearn.metrics import confusion_matrix, f1_score, roc_auc_score
 import pandas as pd
 import numpy as np
+from sklearn.preprocessing import PolynomialFeatures, StandardScaler
 
 def plot_confusion_matrix(train_Y, pred_train_Y, val_Y=None, pred_val_Y=None):
     # Compute confusion matrix for the training set
@@ -148,4 +149,111 @@ def plot_tuning_with_optimal_threshold(label_train, label_val, title, y_label, t
     plt.legend()
     plt.grid(True)
     plt.show()
+
+def calculate_metrics(models, train_X, train_Y, val_X, val_Y):
+    # Create an empty dictionary to store the scores
+    scores = {}
+    print(f"{'Model':22}{'F1 (train sets)':>18}{'F1 (validation sets)':>22}{'ROC_AUC (train sets)':>22}{'ROC_AUC (validation sets)':>28}")
+    # Loop over the models
+    for clf, label in models:
+        # Make a copy of the data to avoid modifying the original
+        train_X_temp = train_X.copy()
+        train_Y_temp = train_Y.copy()
+        val_X_temp = val_X.copy()
+        val_Y_temp = val_Y.copy()
+
+        if label in ['logistic2', 'logistic3']:
+            # Degree of polynomial features based on the model name
+            degree = int(label[-1])  # Extract the degree from the model label
+            
+            # Polynomial Features
+            poly = PolynomialFeatures(degree)
+            train_X_temp = poly.fit_transform(train_X_temp)
+            val_X_temp = poly.transform(val_X_temp)
+            
+            # Scale the data after transforming it to polynomial features
+            scaler = StandardScaler()
+            train_X_temp = scaler.fit_transform(train_X_temp)
+            val_X_temp = scaler.transform(val_X_temp)
+        
+        # Predictions and probabilities for train sets
+        train_preds = clf.predict(train_X_temp)
+        train_probs = clf.predict_proba(train_X_temp)[:, 1]
+        
+        # Predictions and probabilities for validation sets
+        val_preds = clf.predict(val_X_temp)
+        val_probs = clf.predict_proba(val_X_temp)[:, 1]
+        
+        # F1 and ROC-AUC for train sets
+        train_f1 = f1_score(train_Y_temp, train_preds, average='binary')
+        train_roc_auc = roc_auc_score(train_Y_temp, train_probs)
+        
+        # F1 and ROC-AUC for validation sets
+        val_f1 = f1_score(val_Y_temp, val_preds, average='binary')
+        val_roc_auc = roc_auc_score(val_Y_temp, val_probs)
+        
+        # Store the scores in the dictionary
+        scores[label] = {
+            'F1 (train sets)': train_f1,
+            'F1 (validation sets)': val_f1,
+            'ROC-AUC (train sets)': train_roc_auc,
+            'ROC-AUC (validation sets)': val_roc_auc
+        }
+        print(f"{label:18}{train_f1:>18.6f}{val_f1:>22.6f}{train_roc_auc:>20.6f}{val_roc_auc:>25.6f}")
     
+    return scores
+
+def calculate_metrics_after_tuning_threshold(optimal_threshold_list, train_X, train_Y, val_X, val_Y):
+    # Create an empty dictionary to store the scores
+    scores = {}
+    print(f"{'Model':18}{'F1 (train sets)':>15}{'F1 (validation sets)':>25}{'ROC_AUC (train sets)':>20}{'ROC_AUC (validation sets)':>25}", end = ' ' )
+    print(f"{'Optimal threshold':30}")
+    # Loop over the models
+    for clf, optimal_threshold, label in optimal_threshold_list:
+        # Make a copy of the data to avoid modifying the original
+        train_X_temp = train_X.copy()
+        train_Y_temp = train_Y.copy()
+        val_X_temp = val_X.copy()
+        val_Y_temp = val_Y.copy()
+
+        if label in ['logistic2', 'logistic3']:
+            # Degree of polynomial features based on the model name
+            degree = int(label[-1])  # Extract the degree from the model label
+            
+            # Polynomial Features
+            poly = PolynomialFeatures(degree)
+            train_X_temp = poly.fit_transform(train_X_temp)
+            val_X_temp = poly.transform(val_X_temp)
+            
+            # Scale the data after transforming it to polynomial features
+            scaler = StandardScaler()
+            train_X_temp = scaler.fit_transform(train_X_temp)
+            val_X_temp = scaler.transform(val_X_temp)
+        
+        # Predictions and probabilities for train sets
+        train_probs = clf.predict_proba(train_X_temp)[:, 1]
+        train_preds = (train_probs >= optimal_threshold).astype(int)
+
+        
+        # Predictions and probabilities for validation sets
+        val_probs = clf.predict_proba(val_X_temp)[:, 1]
+        val_preds = (val_probs >= optimal_threshold).astype(int)
+        
+        # F1 and ROC-AUC for train sets
+        train_f1 = f1_score(train_Y_temp, train_preds, average='binary')
+        train_roc_auc = roc_auc_score(train_Y_temp, train_probs)
+        
+        # F1 and ROC-AUC for validation sets
+        val_f1 = f1_score(val_Y_temp, val_preds, average='binary')
+        val_roc_auc = roc_auc_score(val_Y_temp, val_probs)
+        
+        # Store the scores in the dictionary
+        scores[label] = {
+            'F1 (train sets)': train_f1,
+            'F1 (validation sets)': val_f1,
+            'ROC-AUC (train sets)': train_roc_auc,
+            'ROC-AUC (validation sets)': val_roc_auc
+        }
+        print(f"{label:15}{train_f1:>15.6f}{val_f1:>22.6f}{train_roc_auc:>20.6f}{val_roc_auc:>22.6f}{optimal_threshold:25.6f}")
+    
+    return scores
