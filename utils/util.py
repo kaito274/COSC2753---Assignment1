@@ -206,7 +206,7 @@ def calculate_metrics(models, train_X, train_Y, val_X, val_Y):
 def calculate_metrics_after_tuning_threshold(optimal_threshold_list, train_X, train_Y, val_X, val_Y):
     # Create an empty dictionary to store the scores
     scores = {}
-    print(f"{'Model':18}{'F1 (train sets)':>15}{'F1 (validation sets)':>25}{'ROC_AUC (train sets)':>20}{'ROC_AUC (validation sets)':>25}", end = ' ' )
+    print(f"{'Model':18}{'F1 (train sets)':>15}{'F1 (validation sets)':>22}{'ROC_AUC (train sets)':>22}{'ROC_AUC (validation sets)':>27}", end = ' ' )
     print(f"{'Optimal threshold':30}")
     # Loop over the models
     for clf, optimal_threshold, label in optimal_threshold_list:
