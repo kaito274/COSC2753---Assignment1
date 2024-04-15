@@ -4,3 +4,4 @@ optimization/*.joblib filter=lfs diff=lfs merge=lfs -text
 models/*.joblib filter=lfs diff=lfs merge=lfs -text
 models/* filter=lfs diff=lfs merge=lfs -text
 tuning/* filter=lfs diff=lfs merge=lfs -text
+tuning//*.joblib filter=lfs diff=lfs merge=lfs -text
